@@ -1,0 +1,83 @@
+from pythonpixels import PPImage
+#from pythonpixels import PPColor
+import pygame
+import os
+
+class KPImage(PPImage):
+    brushFileName = None
+    brushSurface = None
+    brushPixels = None
+    brushImage = None
+    brushTexture = None
+    
+    def static_createFromImageFile(self,fileName):
+        returnKVI = None
+        if os.path.exists(fileName):
+            newSurface = pygame.image.load(fileName)
+            returnKVI = KPImage(newSurface.get_width(), newSurface.get_height(), KPImage.defaultByteDepth)
+            data = pygame.image.tostring(newSurface, 'RGBA', False)
+            #drawFromArray_ToTopLeft_FillRestWithTransparent_FromCustomByteOrder(self, inputArray, inputStride, inputByteDepth, inputWidth, inputHeight, bOffset, gOffset, rOffset, aOffset):
+            
+            newSurface_byteDepth = newSurface.get_bytesize() #int(newSurface.get_bitsize()/8)
+            newSurface_stride = newSurface.get_pitch() #newSurface.get_width() * newSurface_byteDepth
+            bOffset = 0
+            gOffset = 1
+            rOffset = 2
+            aOffset = 3
+            returnKVI.drawFromArray_ToTopLeft_FillRestWithTransparent_FromCustomByteOrder(data, newSurface_stride, newSurface_byteDepth, newSurface.get_width(), newSurface.get_height(), bOffset, gOffset, rOffset, aOffset)
+        else:
+            print("ERROR in KivyPixels.static_createFromImageFile: file \""+fileName+"\"does not exist")
+        return returnKVI
+    
+    def load(self, fileName):
+        self.lastUsedFileName = fileName
+        newSurface = pygame.image.load(fileName)
+        self.init(newSurface.get_width(), newSurface.get_height(), KPImage.defaultByteDepth)
+        data = pygame.image.tostring(newSurface, 'RGBA', False)
+        #drawFromArray_ToTopLeft_FillRestWithTransparent_FromCustomByteOrder(self, inputArray, inputStride, inputByteDepth, inputWidth, inputHeight, bOffset, gOffset, rOffset, aOffset):
+        
+        newSurface_byteDepth = newSurface.get_bytesize() #int(newSurface.get_bitsize()/8)
+        newSurface_stride = newSurface.get_pitch() #newSurface.get_width() * newSurface_byteDepth
+        bOffset = 0
+        gOffset = 1
+        rOffset = 2
+        aOffset = 3
+        KPImage.drawFromArray_ToTopLeft_FillRestWithTransparent_FromCustomByteOrder(self, data, newSurface_stride, newSurface_byteDepth, newSurface.get_width(), newSurface.get_height(), bOffset, gOffset, rOffset, aOffset)
+        
+        
+    
+    def saveAs(self, fileName):
+        IsOK = None
+        print("Saving \"" + os.path.join(os.getcwd(), fileName) + "\"")
+        
+        #self.updateVariableImageSize()
+        #self.assumed_fbo_stride = int(self.fbo.size[0]) * self.assumed_fbo_byteDepth
+        #self.pixelBuffer.array_DrawToSelf_ToTopLeft_FillRestWithTransparent_ToCustomByteOrder(self.fbo.pixels, self.assumed_fbo_stride, self.assumed_fbo_byteDepth, self.fbo.size[0], self.fbo.size[1], bOffset, gOffset, rOffset, aOffset)
+        try:
+            if (self.IsDebugMode):
+                print("self.width:"+str(self.width))
+                print("self.height:"+str(self.height))
+                print("len(self.buffer):"+str(len(self.buffer)))
+                print("self.getMaxChannelValueNotIncludingAlpha():"+str(self.getMaxChannelValueNotIncludingAlpha()))
+                print("self.getMaxAlphaValue():"+str(self.getMaxAlphaValue()))
+            data = bytes(self.buffer) #convert from bytearray to bytes
+            if (self.IsDebugMode):
+                debugX = 5
+                debugY = 5
+                if (debugX>=self.width) debugX=self.width-1
+                if (debugY>=self.height) debugY=self.height-1
+                debugIndex = debugY*self.stride + debugX*self.byteDepth
+                print("debug pixel at ("+str(debugX)+""+str(debugY)+"): "+PPImage.static_bufferToTupleStyleString(data,debugIndex,self.byteDepth))
+            surface = pygame.image.fromstring(data, (self.width, self.height), 'RGBA', True)
+            pygame.image.save(surface, fileName)
+            IsOK = True
+        except Exception as e:
+            IsOK = False
+            print("Could not finish saving: "+str(e))
+
+        return IsOK
+    
+    def save(self):
+        return self.saveAs(self.lastUsedFileName)
+        
+        

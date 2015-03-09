@@ -1,0 +1,18 @@
+
+
+class PixelBuffer:
+    stride = None
+    width = None
+    height = None
+    byteDepth = None
+    buffer = None
+    
+    def __init__(self, setWidth, setHeight, setBytesPerPixel):
+        self.width = setWidth
+        self.height = setHeight
+        self.byteDepth = setBytesPerPixel
+        self.stride = self.width * self.byteDepth
+        TOTALBYTECOUNT = self.stride * self.height
+        self.buffer = bytearray(TOTALBYTECOUNT)
+        
+    

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="PydevSearchPage">
+		<item value="false" key="com.python.pydev.ui.search.pySearchPageCASE_SENSITIVE"/>
+		<item value="false" key="com.python.pydev.ui.search.pySearchPageSEARCH_DERIVED"/>
+		<item value="false" key="REG_EX_SEARCH"/>
+		<item value="2" key="com.python.pydev.ui.search.pySearchPageHISTORY_SIZE"/>
+		<section name="com.python.pydev.ui.search.pySearchPageHISTORY0">
+			<item value="false" key="ignoreCase"/>
+			<item value="0" key="scope"/>
+			<item value="aOffset" key="textPattern"/>
+			<item value="false" key="isRegExSearch"/>
+			<list key="fileNamePatterns">
+				<item value="*.py"/>
+				<item value="*.pyw"/>
+				<item value="*.pyx"/>
+				<item value="*.pxd"/>
+				<item value="*.pxi"/>
+			</list>
+			<list key="workingSets">
+			</list>
+		</section>
+		<section name="com.python.pydev.ui.search.pySearchPageHISTORY1">
+			<item value="false" key="ignoreCase"/>
+			<item value="0" key="scope"/>
+			<item value="IsDebugMode" key="textPattern"/>
+			<item value="false" key="isRegExSearch"/>
+			<list key="fileNamePatterns">
+				<item value="*.py"/>
+				<item value="*.pyw"/>
+				<item value="*.pyx"/>
+				<item value="*.pxd"/>
+				<item value="*.pxi"/>
+			</list>
+			<list key="workingSets">
+			</list>
+		</section>
+	</section>
+	<section name="pydev_completion_proposal_size">
+	</section>
+</section>

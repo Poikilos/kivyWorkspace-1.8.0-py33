@@ -1,0 +1,78 @@
+
+
+class PixelBuffer:
+    stride = None
+    width = None
+    height = None
+    byteDepth = None
+    buffer = None
+    
+    def __init__(self, setWidth, setHeight, setBytesPerPixel):
+        self.width = setWidth
+        self.height = setHeight
+        self.byteDepth = setBytesPerPixel
+        self.stride = self.width * self.byteDepth
+        TOTALBYTECOUNT = self.stride * self.height
+        self.buffer = bytearray(TOTALBYTECOUNT)
+        
+    def DrawToSelfAtTopLeftFillRestWithTransparent(self, inputPixelBuffer, atX, atY):
+        IsToFillRestWithZeroes = True
+        if self.byteDepth == inputPixelBuffer.byteDepth:
+            destLineOfZeroes = None
+            if (inputPixelBuffer.height<this.height):
+                destLineOfZeroes = bytearray(this.stride)
+            if (inputPixelBuffer.width==this.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                for destY in range(0,this.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    NextSourceLinePixelIndex = sourceLinePixelIndex + inputPixelBuffer.stride
+                    if (destY<inputPixelBuffer.height):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        this.buffer[destLinePixelIndex:NextDestLinePixelIndex] = inputPixelBuffer.buffer[sourceLinePixelIndex:NextSourceLinePixelIndex]
+                    elif IsToFillRestWithZeroes:
+                        this.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += this.stride
+                    sourceLinePixelIndex += inputPixelBuffer.stride
+            elif (inputPixelBuffer.width>this.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                for destY in range(0,this.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    #NextSourceLinePixelIndex = sourceLinePixelIndex + inputPixelBuffer.stride
+                    NextSourceLinePixelIndexLIMITED = sourceLinePixelIndex + self.stride #intentionally self.stride, to limit how much to get
+                    if (destY<inputPixelBuffer.height):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        this.buffer[destLinePixelIndex:NextDestLinePixelIndex] = inputPixelBuffer.buffer[sourceLinePixelIndex:NextSourceLinePixelIndexLIMITED]
+                    elif IsToFillRestWithZeroes:
+                        this.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += this.stride
+                    sourceLinePixelIndex += inputPixelBuffer.stride
+            else: #elif (inputPixelBuffer.width<this.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                PartialDestLineOfZeroes = bytearray(this.stride-inputPixelBuffer.stride)
+                for destY in range(0,this.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    NextDestLinePixelIndexLIMITED = destLinePixelIndex + inputPixelBuffer.stride #intentially input stride to limit self stride since source is smaller
+                    NextSourceLinePixelIndex = sourceLinePixelIndex + inputPixelBuffer.stride
+                    #NextSourceLinePixelIndexLIMITED = sourceLinePixelIndex + self.stride #intentionally self.stride, to limit how much to get
+                    if (destY<inputPixelBuffer.height):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        this.buffer[destLinePixelIndex:NextDestLinePixelIndexLIMITED] = inputPixelBuffer.buffer[sourceLinePixelIndex:NextSourceLinePixelIndex]
+                        if IsToFillRestWithZeroes:
+                            this.buffer[NextDestLinePixelIndexLIMITED:NextDestLinePixelIndex] = PartialDestLineOfZeroes[:]
+                    elif IsToFillRestWithZeroes:
+                        this.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += this.stride
+                    sourceLinePixelIndex += inputPixelBuffer.stride
+                        
+                        
+        else:
+            print("Not Yet Implemented: different byte depth in DrawToSelfAtTopLeft")

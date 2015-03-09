@@ -1,0 +1,8 @@
+
+
+class PixelBuffer:
+    stride = None
+    width = None
+    height = None
+    byteDepth = None
+    

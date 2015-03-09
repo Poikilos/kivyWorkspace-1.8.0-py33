@@ -1,0 +1,44 @@
+
+
+
+
+from pythonpixels import VariableImage
+#from pythonpixels import ByteColor
+import pygame
+
+class KivyVariableImage(VariableImage):
+    brushFileName = None
+    brushSurface = None
+    brushPixels = None
+    brushImage = None
+    brushTexture = None
+    
+    def __init__(self):
+        pass
+    
+    def static_createFromImageFile(self,fileName):
+        newSurface = pygame.image.load(fileName)
+        returnKVI = KivyVariableImage(newSurface.get_width(), newSurface.get_height(), KivyVariableImage.defaultByteDepth)
+        data = pygame.image.tostring(newSurface, 'RGBA', False)
+        #static_DrawToArray_AtTopLeft_FillRestWithTransparent_ToCustomByteOrder(self, inputArray, inputStride, inputByteDepth, inputWidth, inputHeight, bOffset, gOffset, rOffset, aOffset):
+        
+        newSurface_byteDepth = newSurface.get_bytesize() #int(newSurface.get_bitsize()/8)
+        newSurface_stride = newSurface.get_pitch() #newSurface.get_width() * newSurface_byteDepth
+        bOffset = 0
+        gOffset = 1
+        rOffset = 2
+        aOffset = 3
+        KivyVariableImage.static_DrawToArray_AtTopLeft_FillRestWithTransparent_ToCustomByteOrder(self, data, newSurface_stride, newSurface_byteDepth, newSurface.get_width(), newSurface.get_height(), bOffset, gOffset, rOffset, aOffset)
+    
+    def saveAs(self, fileName):
+        IsOK = True
+        try:
+            
+        except:
+            IsOK = False
+        return IsOK
+    
+    def save(self):
+        return saveAs(self.lastUsedFileName)
+        
+        

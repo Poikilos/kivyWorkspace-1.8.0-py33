@@ -1,0 +1,370 @@
+import kivy
+kivy.require('1.0.8')
+
+from kivy.core.window import Window
+from kivy.uix.widget import Widget
+from kivy.graphics import Fbo, Color, Rectangle, Ellipse
+from kivy.app import App
+from kivy.clock import Clock
+import math
+import random
+
+#PPS will stand for Pixels Per Second
+pixelsPerMeter = 64
+framesPerSecond = 60.0
+
+
+def equalSize(thisSize, thatSize):
+    return thisSize[0]==thatSize[0] and thisSize[1]==thatSize[1]
+
+def getStringFromRectangle(thisRectangle):
+    return "("+str(thisRectangle.pos[0])+"+"+str(thisRectangle.size[0])+","+str(thisRectangle.pos[1])+"+"+str(thisRectangle.size[0])+")"
+    
+def getDistance1D(value1, value2):
+    result = value2 - value1
+    if result < 0:
+        result = result * -1
+    return result
+
+class PseudoRandom:
+    pseudoRandomSeed = None
+    pseudoRandomLast = None
+    pseudoRandomDegrade = None
+    pseudoRandomMax = None
+    def __init__(self):
+        self.pseudoRandomSeed = 3254
+        self.pseudoRandomLast = self.pseudoRandomSeed
+        self.pseudoRandomDegrade = self.convertSeedToDegrade(self.pseudoRandomSeed)
+        self.pseudoRandomMax = 24000000
+    
+    def repairSeed(self):
+        if self.pseudoRandomSeed<1:
+            self.pseudoRandomSeed = 1 - self.pseudoRandomSeed
+            
+    def repairDegrade(self):
+        if self.pseudoRandomDegrade > self.pseudoRandomMax / 3:
+            self.pseudoRandomDegrade = self.pseudoRandomDegrade / 7
+        if (self.pseudoRandomDegrade < 0):
+            self.pseudoRandomDegrade = 0 - self.pseudoRandomDegrade
+        if (self.pseudoRandomDegrade<2):
+            self.pseudoRandomDegrade = self.convertSeedToDegrade(self.pseudoRandomSeed)
+        
+    
+    def convertSeedToDegrade(self,thisSeed):
+        return (thisSeed/3) * (thisSeed/3) + thisSeed + 17
+    
+    def getPseudoRandom(self):
+        self.pseudoRandomDegrade = (self.pseudoRandomMax - self.pseudoRandomDegrade) - (self.pseudoRandomLast/11) +  self.pseudoRandomLast
+        self.repairDegrade()
+        self.pseudoRandomLast = self.pseudoRandomLast*self.pseudoRandomLast + self.pseudoRandomSeed
+    
+        if self.pseudoRandomLast>self.pseudoRandomMax:
+            self.pseudoRandomLast = 0
+        return self.pseudoRandomLast
+
+    def getPseudoRandRange(self, minimum, exclusiveMaximum):
+        return self.getPseudoRandom()%(int(exclusiveMaximum)-int(minimum)) + minimum
+
+pseudorandom = PseudoRandom();
+
+def getPseudoRandRange(minimum, exclusiveMaximum):
+    global pseudorandom
+    return pseudorandom.getPseudoRandRange(minimum, exclusiveMaximum)
+
+def getRandomColor():
+    return Color(float(random.randrange(0,1000))/1000.0, float(random.randrange(0,1000))/1000.0, float(random.randrange(0,1000))/1000.0, 1.0)
+
+def getDistance2D(x1, y1, x2, y2):
+    # **2 means squared:
+    return math.sqrt( (x2 - x1) ** 2 + (y2 - y1) ** 2 )
+
+def getDistanceBetweenCharacters(thisCharacter, thatCharacter):
+    return getDistance2D(thisCharacter.getCenterX(), thisCharacter.getCenterY(), thatCharacter.getCenterX(), thatCharacter.getCenterY())
+
+def getPolarOffset(x1, y1, x2, y2):
+    return rectToPolar_Radians(x2-x1, y2-y1)
+
+#get random x,y integer coordinates as a tuple
+def getRandomPointIntegersFromRectangle(thisRectangle):
+    return random.randrange(int(thisRectangle.pos[0]),int(thisRectangle.pos[0]+thisRectangle.size[0])), random.randrange(int(thisRectangle.pos[1]),int(thisRectangle.pos[1]+thisRectangle.size[1])) 
+
+def rectToPolar_Radians(x, y):
+    r = math.sqrt(x*x + y*y)
+    theta = None
+    if (x==0.0 and y==0.0):
+        theta = math.radians(-360.0) #technically undefined, but use -360 aka 0 for game
+    elif (x==0.0):
+        if (y>0.0):
+            theta = math.radians(90.0)
+        else: #elif (y<0.0):
+            theta = math.radians(270.0)
+    elif (y==0.0):
+        if (x<0.0):
+            theta = math.radians(180.0)
+        else: #elif x>0.0
+            theta = math.radians(0.0)
+    else:
+        theta = math.atan(y/x)  #atan is same as tan^-1
+        if (x<0):
+            theta = math.radians(180.0) + theta
+        
+    return r,theta
+
+def polarToRect_Radians(r, theta):
+    x = r * math.cos(theta)
+    y = r * math.sin(theta)
+    return x, y
+    
+class Projectile:
+    pos = None
+    directionRadians = None
+    speedReductionPPF = None
+    speedPPF = None
+    
+    def __init__(self, position, speedPPF, directionRadians):
+        self.pos = position[0],position[1] #copy the coordinates to a new point
+        self.directionRadians = directionRadians
+
+class Character:
+    color = None
+    index = None
+    teamIndex = None
+    #NOTE: if Rectangle here instead of None, graphic will be shared by all!
+    graphic = None
+    isAlive = None
+    hasAI = False
+    visible = True
+    targetX = None
+    targetY = None
+    #directionRadians = None
+    #maxSpeedPPS = None
+    #maxSpeedPPF = None
+    maxSpeedMetersPerSecond = None
+    hitRadius = None
+    knownMapRectangle = None
+    attackRadius = None
+    aggroRadius = None
+    targetCharacter = None
+
+    def getMaxSpeedPixelsPerFrame(self):
+        global pixelsPerMeter
+        global framesPerSecond
+        return self.maxSpeedMetersPerSecond/pixelsPerMeter/framesPerSecond
+        
+    def setPositionRelativePolar(self, r, theta):
+        xMove,yMove = polarToRect_Radians(r, theta)
+        self.graphic.pos = self.graphic.pos[0]+xMove, self.graphic.pos[1]+yMove
+        
+    def attack(self,attackedCharacter):
+        if (getDistanceBetweenCharacters(self, attackedCharacter)-attackedCharacter.hitRadius < self.attackRadius):
+            attackedCharacter.isAlive = False
+            
+        
+    def moveTowardTarget(self):
+        
+        if (self.targetCharacter is not None):
+            self.targetX = self.targetCharacter.getCenterX()
+            self.targetY = self.targetCharacter.getCenterY()
+            
+        if (self.targetX is not None) and (self.targetY is not None):
+            
+            rToTarget, thetaToTarget = getPolarOffset(self.getCenterX(), self.getCenterY(), self.targetX, self.targetY)
+            
+            
+            rMove, thetaMove = ( min(rToTarget, self.maxSpeedPPF), thetaToTarget )
+            
+            if (rToTarget < self.hitRadius):
+                #rMove = rMove*-1.0 #move in reverse if too close
+                if self.targetCharacter is None:
+                    self.chooseRandomTargetLocation()
+            else:
+                self.setPositionRelativePolar(rMove, thetaMove)
+
+
+    def refresh(self):
+        if (self.targetX is not None and self.targetY is not None):
+            self.moveTowardTarget()
+        else:
+            if self.hasAI:
+                self.chooseRandomTargetLocation()
+
+    def chooseRandomTargetLocation(self):
+        if (self.isAlive):
+            if (self.knownMapRectangle is not None):
+                randomX, randomY = getRandomPointIntegersFromRectangle(self.knownMapRectangle)
+                self.targetX = randomX
+                self.targetY = randomY
+                #print("Random target is "+str((randomX, randomY)))
+
+    def __init__(self, index):
+        global framesPerSecond
+        self.index = index
+        isAlive = True
+        self.setMaxSpeedPixelsPerSecond(20)
+        self.color = Color(1, 1, 1, 1)
+        self.hitRadius = 10.0
+        self.attackRadius = 20.0
+        self.aggroRadius = 50.0
+        self.graphic = Ellipse(pos=(0, 0), size=(self.hitRadius*2, self.hitRadius*2))
+        #targetX and targetY must start with None for AI to work!
+
+    def setMaxSpeedMetersPerSecond(self,set_M_s):
+        #global framesPerSecond
+        #global pixelsPerMeter
+        #self.maxSpeedPPS = float(set_M_s) / float(pixelsPerMeter)
+        #self.maxSpeedPPF = self.maxSpeedPPS / framesPerSecond
+        self.maxSpeedMetersPerSecond = float(set_M_s)
+        
+    def setPositionRelativeRectangular(self, xOffset, yOffset):
+        self.pos = self.pos[0]+xOffset, self.pos[1]+yOffset
+
+    def getCenterX(self):
+        return self.graphic.pos[0] + (self.graphic.size[0] / 2)
+
+    def setCenter(self,x,y):
+        self.graphic.pos = (  x - self.graphic.size[0] / 2,  y - self.graphic.size[1]/2  )
+        
+    def setCenterX(self,x):
+        self.graphic.pos = (x - self.graphic.size[0] / 2, self.graphic.pos[1])
+
+    def getCenterY(self):
+        return self.graphic.pos[1] + (self.graphic.size[1] / 2)
+
+    def setCenterY(self,y):
+        self.graphic.pos = (self.graphic.pos[0], (y - self.graphic.size[1]/2))
+
+    def stop(self):
+        self.targetX = self.getCenterX()
+        self.targetY = self.getCenterY()
+
+
+class CanvasForm(Widget):
+    characters = list()
+    player1 = None
+    player1CharacterIndex = None
+    characterCount = 0
+    enemyMaxCount = 10
+    teams = None
+    playerTeamIndex = None
+    computerTeamIndex = None
+    lastCreatedCharacter = None
+    lastCreatedCharacterIndex = None
+    
+    def generateCharacter(self, color):
+        self.lastCreatedCharacterIndex = self.characterCount
+        self.lastCreatedCharacter = Character(self.lastCreatedCharacterIndex)
+        self.lastCreatedCharacter.teamIndex = 0
+        self.characters.append(self.lastCreatedCharacter)
+        self.lastCreatedCharacter.color = color
+        self.canvas.add(self.lastCreatedCharacter.color)
+        self.canvas.add(self.lastCreatedCharacter.graphic)
+        self.lastCreatedCharacter.setCenterX(getPseudoRandRange(0,600))
+        self.lastCreatedCharacter.setCenterY(getPseudoRandRange(0,600))
+        self.lastCreatedCharacter.hasAI = True
+        
+        self.characterCount += 1
+        
+
+    def __init__(self, **kwargs):
+        try:
+            super(CanvasForm, self).__init__(**kwargs)
+            self._keyboard = Window.request_keyboard(
+                self._keyboard_closed, self)
+            self._keyboard.bind(on_key_down=self._on_keyboard_down)
+            self.bind(on_touch_down=self.canvasTouchDown)
+        except:
+            pass
+
+        #NOTES:
+        #pos[0] is x coordinate for position
+        #pos[1] is y coordinate for position
+        #The color constructor takes Red,Green,Blue, and Alpha which is opacity
+        #so Color(1,0,0,1) is red
+        
+        self.teams = list()
+        self.teams.append("Computer")
+        self.computerTeamIndex=0
+        self.teams.append("Player")
+        self.playerTeamIndex=1
+
+        self.generateCharacter(Color(0, .2, .7, 1))
+        self.player1CharacterIndex = self.lastCreatedCharacterIndex
+        self.lastCreatedCharacter.teamIndex = self.playerTeamIndex
+        self.lastCreatedCharacter.setCenterX(self.getWidth() / 2)
+        self.lastCreatedCharacter.setCenterY(self.getHeight() / 2)
+        self.lastCreatedCharacter.stop()
+        self.lastCreatedCharacter.hasAI = False
+        self.player1 = self.lastCreatedCharacter
+
+        for enemyNumber in range(0,self.enemyMaxCount):
+            #Dis is Da Enemy Dude Thingy-Mabob Numbero Uno
+            self.generateCharacter(Color(0, .7, .2))
+            self.lastCreatedCharacter.teamIndex = self.computerTeamIndex
+            self.lastCreatedCharacter.hasAI = True
+            
+
+        #Making update interval 1/60 sec make game run at 60 frames per second:
+        global framesPerSecond
+        Clock.schedule_interval(self.update, 1.0 / framesPerSecond)
+
+    def getWidth(self):
+        return self.size[0]
+
+    def getHeight(self):
+        return self.size[1]
+
+    def _keyboard_closed(self):
+        print('Keyboard disconnected!')
+        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+        self._keyboard = None
+
+    def update(self, dt):
+        for activeCharacterIndex in range(0, self.characterCount):
+            activeCharacter = self.characters[activeCharacterIndex]
+            if (activeCharacter.knownMapRectangle is None) or (equalSize(activeCharacter.knownMapRectangle.size, self.size) is False):
+                activeCharacter.knownMapRectangle = Rectangle(pos=(0,0),size=self.size)
+                #print("Enemy "+str(activeCharacterIndex)+" saw map area: "+getStringFromRectangle(activeCharacter.knownMapRectangle))
+            if (activeCharacter.hasAI):
+                if activeCharacter.targetCharacter is None:
+                    for passiveCharacterIndex in range(0,self.characterCount):
+                        passiveCharacter = self.characters[passiveCharacterIndex]
+                        if (passiveCharacterIndex != activeCharacterIndex):
+                            if (passiveCharacter.teamIndex != activeCharacter.teamIndex):
+                                passiveCharacterDistance = getDistanceBetweenCharacters(activeCharacter,passiveCharacter)
+                                if (passiveCharacterDistance <= activeCharacter.aggroRadius):
+                                    activeCharacter.targetCharacter = passiveCharacter
+                                    break;
+                #NOTE: if there is no target, refresh will get a random targetX and targetY.
+                    
+                        
+            activeCharacter.refresh()
+
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        print('The key' + str(keycode) + ' pressed')
+        print(' - text is ' + text)
+        print(' - modifiers are '+ str(modifiers))
+        # Keycode is composed of an integer + a string
+        # If we hit escape, release the keyboard
+        if keycode[1] == 'escape':
+            keyboard.release()
+        return True
+
+    def canvasTouchDown(self, touch, *largs):
+        touchX, touchY = largs[0].pos
+        self.player1.targetX = touchX
+        self.player1.targetY = touchY
+        r, theta = getPolarOffset(self.player1.getCenterX(), self.player1.getCenterY(), self.player1.targetX, self.player1.targetY)
+        for passiveCharacterIndex in range(0,self.characterCount):
+            passiveCharacter = self.characters[passiveCharacterIndex]
+            #if (passiveCharacterIndex != activeCharacterIndex):
+            self.player1.attack(passiveCharacter)
+        
+
+
+class PolarCirclesApp(App):
+    def build(self):
+        return CanvasForm()
+
+if __name__ == '__main__':
+    PolarCirclesApp().run()

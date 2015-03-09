@@ -1,0 +1,60 @@
+
+
+
+
+from pythonpixels import VariableImage
+#from pythonpixels import ByteColor
+import pygame
+
+class KivyVariableImage(VariableImage):
+    brushFileName = None
+    brushSurface = None
+    brushPixels = None
+    brushImage = None
+    brushTexture = None
+    
+    def __init__(self):
+        pass
+    
+    def static_createFromImageFile(self,fileName):
+        newSurface = pygame.image.load(fileName)
+        returnKVI = KivyVariableImage(newSurface.get_width(), newSurface.get_height(), KivyVariableImage.defaultByteDepth)
+        data = pygame.image.tostring(newSurface, 'RGBA', False)
+        #static_DrawToArray_AtTopLeft_FillRestWithTransparent_ToCustomByteOrder(self, inputArray, inputStride, inputByteDepth, inputWidth, inputHeight, bOffset, gOffset, rOffset, aOffset):
+        
+        newSurface_byteDepth = newSurface.get_bytesize() #int(newSurface.get_bitsize()/8)
+        newSurface_stride = newSurface.get_pitch() #newSurface.get_width() * newSurface_byteDepth
+        bOffset = 0
+        gOffset = 1
+        rOffset = 2
+        aOffset = 3
+        KivyVariableImage.static_DrawToArray_AtTopLeft_FillRestWithTransparent_ToCustomByteOrder(self, data, newSurface_stride, newSurface_byteDepth, newSurface.get_width(), newSurface.get_height(), bOffset, gOffset, rOffset, aOffset)
+    
+    def saveAs(self, fileName):
+        IsOK = None
+        print("Saving \"" + os.path.join(os.getcwd(), saveFileName) + "\"")
+        
+        #self.updateVariableImageSize()
+        #self.assumed_fbo_stride = int(self.fbo.size[0]) * self.assumed_fbo_byteDepth
+        #self.pixelBuffer.array_DrawToSelf_AtTopLeft_FillRestWithTransparent_ToCustomByteOrder(self.fbo.pixels, self.assumed_fbo_stride, self.assumed_fbo_byteDepth, self.fbo.size[0], self.fbo.size[1], bOffset, gOffset, rOffset, aOffset)
+        try:
+            if (self.IsDebugMode):
+                print("self.pixelBuffer.width:"+str(self.pixelBuffer.width))
+                print("self.pixelBuffer.height:"+str(self.pixelBuffer.height))
+                print("len(self.pixelBuffer.buffer):"+str(len(self.pixelBuffer.buffer)))
+                print("self.pixelBuffer.getMaxChannelValueNotIncludingAlpha():"+str(self.pixelBuffer.getMaxChannelValueNotIncludingAlpha()))
+                print("self.pixelBuffer.getMaxAlphaValue():"+str(self.pixelBuffer.getMaxAlphaValue()))
+            data = bytes(self.pixelBuffer.buffer) #convert from bytearray to bytes
+            surface = pygame.image.fromstring(data, (self.pixelBuffer.width, self.pixelBuffer.height), 'RGBA', True)
+            pygame.image.save(surface, saveFileName)
+            IsOK = True
+        except Exception as e:
+            IsOK = False
+            print("Could not finish saving: "+str(e))
+
+        return IsOK
+    
+    def save(self):
+        return self.saveAs(self.lastUsedFileName)
+        
+        

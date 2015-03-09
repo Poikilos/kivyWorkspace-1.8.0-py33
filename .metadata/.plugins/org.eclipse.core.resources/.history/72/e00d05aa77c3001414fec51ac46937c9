@@ -1,0 +1,142 @@
+#expertmm forked this from https://gist.github.com/tshirtman/6222891
+
+from kivy.app import App
+from kivy.properties import NumericProperty
+from kivy.lang import Builder
+from kivy.clock import Clock
+
+from kivy.uix.label import Label
+from kivy.graphics import PushMatrix
+from kivy.graphics import PopMatrix
+from kivy.graphics import Rotate
+from kivy.graphics import Rectangle
+from kivy.graphics import Color
+from kivy.uix.widget import Widget
+from kivy.uix.boxlayout import BoxLayout
+
+import math
+import random
+
+#the variables marked with underscores should not be touched except internally
+class FreeWidget(Widget):
+    freeAngle = None
+    freePos = None
+    _rotation_instruction = None
+    _rectangle_instruction = None
+    
+    degreesPerSecond = None
+    changePerFrameToPos = None
+    
+    def __init__(self, **kwargs):
+        super(FreeWidget, self).__init__(**kwargs)
+        self.freeAngle = 0.0
+        self.degreesPerSecond = 0.0
+        self.freePos = (10.0,100.0)
+        self._rotation_instruction = Rotate(angle=self.freeAngle, origin=self.freePos)
+        self._rectangle_instruction = Rectangle(pos=self.freePos, size=(10.0,20.0))
+#         with self.canvas.before:
+#             PushMatrix()
+#             Rotate(angle=self.freeAngle, origin = self.freePos)
+        self.canvas.add(PushMatrix())
+        self.canvas.add(self._rotation_instruction)  #self.canvas.add(Rotate(angle=self.freeAngle, origin = self.freePos))
+        self.canvas.add(Color(1,0,0,1))
+        self.canvas.add(self._rectangle_instruction)  #self.canvas.add(Rectangle(pos=self.freePos, size=(10.0,20.0)))
+        self.canvas.add(PopMatrix())
+        self.refresh()
+#         with self.canvas.after:
+#             PopMatrix()
+    
+    def refresh(self):
+        if (self.changePerFrameToPos is not None):
+            self.freePos = self.freePos[0] + self.changePerFrameToPos[0], self.freePos[1] + self.changePerFrameToPos[1]
+        self._rectangle_instruction.pos = self.freePos[0]-self._rectangle_instruction.size[0]/2.0, self.freePos[1]-self._rectangle_instruction.size[1]/2.0
+        self._rotation_instruction.origin = self.freePos
+        self.freeAngle += self.degreesPerSecond
+        self._rotation_instruction.angle = self.freeAngle
+        
+    def set_center_x(self, x):
+        self.freePos = float(x), self.freePos[1]
+    def set_center_y(self, y):
+        self.freePos = self.freePos[0], float(y)
+        
+    def get_center_x(self):
+        return self.freePos[0]
+    def get_center_y(self):
+        return self.freePos[1]
+        
+    def bounce_x(self):
+        if self.changePerFrameToPos is not None:
+            self.changePerFrameToPos = self.changePerFrameToPos[0]*-1.0, self.changePerFrameToPos[1]
+
+    def bounce_y(self):
+        if self.changePerFrameToPos is not None:
+            self.changePerFrameToPos = self.changePerFrameToPos[0], self.changePerFrameToPos[1]*-1.0
+
+class ImperativeRotationApp(App):
+    imperativeLabel = None
+    mainForm = None
+    imperativeWidgets = None
+    lastCreatedWidget = None
+    
+    def build(self):
+        self.imperativeWidgets = list()
+        Clock.schedule_interval(self.update, 0)
+        self.mainForm = Widget()
+        
+#         self.freeWidget1 = FreeWidget()
+#         self.lastCreatedWidget = self.freeWidget1
+#         self.freeWidget1.degreesPerSecond = (1.0)
+#         self.mainForm.add_widget(self.freeWidget1)
+#         self.imperativeWidgets.append(self.freeWidget1)
+        
+        self.freeWidget2 = FreeWidget()
+        self.lastCreatedWidget = self.freeWidget2
+        self.freeWidget2.degreesPerSecond = (3.0)
+        self.freeWidget2.changePerFrameToPos = 2.0,5.0
+        self.mainForm.add_widget(self.freeWidget2)
+        self.imperativeWidgets.append(self.freeWidget2)
+        
+        self.imperativeLabel = Label(text="Touch canvas for free rectangles!")
+        
+        self.imperativeLabel.size = self.imperativeLabel.texture_size
+        self.mainForm.add_widget(self.imperativeLabel)
+        
+        return self.mainForm
+    
+    def getRandomPos(self, lessThanX, lessThanY):
+        return float(random.randrange(0,int(lessThanX))), float(random.randrange(0,int(lessThanY)))
+        
+    def getRandomFormPos(self):
+        return float(random.randrange(0,int(self.mainForm.size[0]))), float(random.randrange(0,int(self.mainForm.size[1])))
+        
+    def generateWidget(self):
+        self.lastCreatedWidget = FreeWidget()
+        self.lastCreatedWidget.degreesPerSecond = float(random.randrange(0,3))
+        self.lastCreatedWidget.changePerFrameToPos = self.getRandomPos(5,5)
+        self.mainForm.add_widget(self.lastCreatedWidget)
+        self.imperativeWidgets.append(self.lastCreatedWidget)
+        
+    def on_touch_down(self):
+        
+    def update(self, dt, *args):
+        self.imperativeLabel.set_center_y(self.mainForm.height/3.0*2.0)
+        self.imperativeLabel.set_center_x(self.mainForm.width/2.0)
+        for widgetIndex in range(0,len(self.imperativeWidgets)):
+            thisWidget = self.imperativeWidgets[widgetIndex]
+            thisWidget.refresh()
+            if thisWidget.changePerFrameToPos is not None:
+                if thisWidget.get_center_x()<0 and thisWidget.changePerFrameToPos[0]<0:
+                    thisWidget.bounce_x()
+                    thisWidget.set_center_x(0)
+                elif thisWidget.get_center_x()>=self.mainForm.size[0] and thisWidget.changePerFrameToPos[0]>0:
+                    thisWidget.bounce_x()
+                    thisWidget.set_center_x(self.mainForm.size[0]-1.0)
+                if thisWidget.get_center_y()<0 and thisWidget.changePerFrameToPos[1]<0:
+                    thisWidget.bounce_y()
+                    thisWidget.set_center_y(0)
+                elif thisWidget.get_center_y()>=self.mainForm.size[1] and thisWidget.changePerFrameToPos[1]>0:
+                    thisWidget.bounce_y()
+                    thisWidget.set_center_x(self.mainForm.size[1]-1.0)
+
+if __name__ == '__main__':
+    ImperativeRotationApp().run()

@@ -1,0 +1,231 @@
+
+
+class PixelBuffer:
+    stride = None
+    width = None
+    height = None
+    byteDepth = None
+    buffer = None
+    
+    def __init__(self, setWidth, setHeight, setBytesPerPixel):
+        self.width = setWidth
+        self.height = setHeight
+        self.byteDepth = setBytesPerPixel
+        self.stride = self.width * self.byteDepth
+        TOTALBYTECOUNT = self.stride * self.height
+        self.buffer = bytearray(TOTALBYTECOUNT)
+        
+    def set_at(self, atX, atY, brushColor):
+        self.array_set_at_ToGRBA(self.buffer, self.stride, self.byteDepth, atX, atY, brushColor)
+
+    def array_set_at_BGRA(self, destArray, destStride, destByteDepth, atX, atY, brushColor):
+        #Since in kivy's pygame.image.fromstring(data, (self.fbo.size[0], self.fbo.size[1]), 'RGBA', True)
+        # blue channel saves to green,
+        # green channel saves to red, &
+        # red channel saves to blue,
+        # channel offsets are:
+        bOffset = 0
+        gOffset = 1
+        rOffset = 2
+        aOffset = 3
+        
+        xCenter = int(atX)
+        yCenter = int(atY)
+        pixelByteIndex = destStride*yCenter + xCenter*destByteDepth
+        print ("pixelByteIndex:"+str(pixelByteIndex))
+        print ("len(pixelBuffer):"+str(len(destArray)))
+        #print("writing bytes...")
+        destArray[pixelByteIndex + bOffset] = int(brushColor.b*255.0+.5)
+        destArray[pixelByteIndex + gOffset] = int(brushColor.g*255.0+.5)
+        destArray[pixelByteIndex + rOffset] = int(brushColor.r*255.0+.5)
+        destArray[pixelByteIndex + aOffset] = int(brushColor.a*255.0+.5)
+
+    def array_set_at_ToGRBA(self, destArray, destStride, destByteDepth, atX, atY, brushColor):
+        
+        #Since in kivy's pygame.image.fromstring(data, (self.fbo.size[0], self.fbo.size[1]), 'RGBA', True)
+        # blue channel saves to green,
+        # green channel saves to red, &
+        # red channel saves to blue,
+        # channel offsets are:
+        gOffset = 0 #gOffset = 1
+        rOffset = 1 #rOffset = 2
+        bOffset = 2 #bOffset = 0
+        aOffset = 3 #aOffset = 3
+        
+        xCenter = int(atX)
+        yCenter = int(atY)
+        pixelByteIndex = destStride*yCenter + xCenter*destByteDepth
+        print ("pixelByteIndex:"+str(pixelByteIndex))
+        print ("len(pixelBuffer):"+str(len(destArray)))
+        #print("writing bytes...")
+        destArray[pixelByteIndex + bOffset] = int(brushColor.b*255.0+.5)
+        destArray[pixelByteIndex + gOffset] = int(brushColor.g*255.0+.5)
+        destArray[pixelByteIndex + rOffset] = int(brushColor.r*255.0+.5)
+        destArray[pixelByteIndex + aOffset] = int(brushColor.a*255.0+.5)
+    
+    def array_PixelFill_ToGRBA(self, destArray, arrayDestStartByteIndex, arrayDestEndExByteIndex, sourceArray, arraySourceStartByteIndex, arraySourceEndExByteIndex):
+        sourceByteDepth = 4
+        destByteDepth = 4
+        #Since in kivy's pygame.image.fromstring(data, (self.fbo.size[0], self.fbo.size[1]), 'RGBA', True)
+        # blue channel saves to green,
+        # green channel saves to red, &
+        # red channel saves to blue,
+        # channel offsets are:
+        gOffset = 0 #gOffset = 1
+        rOffset = 1 #rOffset = 2
+        bOffset = 2 #bOffset = 0
+        aOffset = 3 #aOffset = 3
+
+        if (sourceByteDepth == destByteDepth):
+            if (sourceByteDepth == 4):
+                sourceIndex = arraySourceStartByteIndex
+                destIndex = arrayDestStartByteIndex
+                destRegionByteCount = arrayDestEndExByteIndex - arrayDestStartByteIndex
+                sourceRegionByteCount = arraySourceEndExByteIndex - arraySourceStartByteIndex
+                destRegionPixelCount = destRegionByteCount/destByteDepth
+                sourceRegionPixelCount = sourceRegionByteCount/sourceByteDepth
+                minPixelCount = min(sourceRegionPixelCount,destRegionPixelCount)
+                #if (destRegionPixelCount<=sourceRegionPixelCount):
+                for relativeIndex in range(0,minPixelCount):
+                    destArray[destIndex + bOffset] = sourceArray[sourceIndex]
+                    destArray[destIndex + gOffset] = sourceArray[sourceIndex+1]
+                    destArray[destIndex + rOffset] = sourceArray[sourceIndex+2]
+                    destArray[destIndex + aOffset] = sourceArray[sourceIndex+3]
+                    destIndex += destByteDepth
+                    sourceIndex += sourceByteDepth
+                #else:
+                #    print("Not Yet Implemented: tried to copy small region ("+str(sourceRegionPixelCount)+" pixels) to large region length ("+str(destRegionPixelCount)+" pixels) in PixelFill_ToGRBA")
+            else:
+                print("Not Yet Implemented: byte depth "+str(sourceByteDepth)+" in PixelFill_ToGRBA")
+        else:
+            print("Not Yet Implemented: different byte depth in array_PixelFill_ToGRBA")
+    
+    def DrawToSelf_AtTopLeft_FillRestWithTransparent_ToGRBA(self, inputPixelBuffer):
+        self.array_DrawToSelf_AtTopLeft_FillRestWithTransparent_ToGRBA(inputPixelBuffer.buffer, inputPixelBuffer.stride, inputPixelBuffer.byteDepth, inputPixelBuffer.width, inputPixelBuffer.height)
+        
+    def array_DrawToSelf_AtTopLeft_FillRestWithTransparent_ToGRBA(self, inputArray, inputStride, inputByteDepth, inputWidth, inputHeight):
+        IsToFillRestWithZeroes = True
+        if self.byteDepth == inputByteDepth:
+            destLineOfZeroes = None
+            if (inputHeight<self.height):
+                destLineOfZeroes = bytearray(self.stride)
+            if (inputWidth==self.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                for destY in range(0,self.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    NextSourceLinePixelIndex = sourceLinePixelIndex + inputStride
+                    if (destY<inputHeight):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        #self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = inputArray[sourceLinePixelIndex:NextSourceLinePixelIndex]
+                        self.array_PixelFill_ToGRBA(self.buffer, destLinePixelIndex, NextDestLinePixelIndex, inputArray, sourceLinePixelIndex, NextSourceLinePixelIndex)
+                    elif IsToFillRestWithZeroes:
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                        #array_PixelFill_ToGRBA(self.buffer, destLinePixelIndex, NextDestLinePixelIndex, destLineOfZeroes, 0, self.stride)
+                    else:
+                        break
+                    destLinePixelIndex += self.stride
+                    sourceLinePixelIndex += inputStride
+            elif (inputWidth>self.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                for destY in range(0,self.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    #NextSourceLinePixelIndex = sourceLinePixelIndex + inputStride
+                    NextSourceLinePixelIndexLIMITED = sourceLinePixelIndex + self.stride #intentionally self.stride, to limit how much to get
+                    if (destY<inputHeight):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        #self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = inputArray[sourceLinePixelIndex:NextSourceLinePixelIndexLIMITED]
+                        self.array_PixelFill_ToGRBA(self.buffer, destLinePixelIndex, NextDestLinePixelIndex, inputArray, sourceLinePixelIndex, NextSourceLinePixelIndexLIMITED)
+                    elif IsToFillRestWithZeroes:
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += self.stride
+                    sourceLinePixelIndex += inputStride
+            else: #elif (inputWidth<self.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                PartialDestLineOfZeroes = bytearray(self.stride-inputStride)
+                for destY in range(0,self.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    NextDestLinePixelIndexLIMITED = destLinePixelIndex + inputStride #intentially input stride to limit self stride since source is smaller
+                    NextSourceLinePixelIndex = sourceLinePixelIndex + inputStride
+                    #NextSourceLinePixelIndexLIMITED = sourceLinePixelIndex + self.stride #intentionally self.stride, to limit how much to get
+                    if (destY<inputHeight):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        #self.buffer[destLinePixelIndex:NextDestLinePixelIndexLIMITED] = inputArray[sourceLinePixelIndex:NextSourceLinePixelIndex]
+                        self.array_PixelFill_ToGRBA(self.buffer, destLinePixelIndex, NextDestLinePixelIndexLIMITED, inputArray, sourceLinePixelIndex, NextSourceLinePixelIndex)
+                        if IsToFillRestWithZeroes:
+                            self.buffer[NextDestLinePixelIndexLIMITED:NextDestLinePixelIndex] = PartialDestLineOfZeroes[:]
+                    elif IsToFillRestWithZeroes:
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += self.stride
+                    sourceLinePixelIndex += inputStride
+        else:
+            print("Not Yet Implemented: different byte depth in DrawToSelfAtTopLeft")
+                    
+    def DrawToSelf_AtTopLeft_FillRestWithTransparent_1operationPerLine(self, inputPixelBuffer):
+        self.array_DrawToSelf_AtTopLeft_FillRestWithTransparent_1operationPerLine(inputPixelBuffer.buffer, inputPixelBuffer.stride, inputPixelBuffer.byteDepth, inputPixelBuffer.width, inputPixelBuffer.height)
+        
+    def array_DrawToSelf_AtTopLeft_FillRestWithTransparent_1operationPerLine(self, inputArray, inputStride, inputByteDepth, inputWidth, inputHeight):
+        IsToFillRestWithZeroes = True
+        if self.byteDepth == inputByteDepth:
+            destLineOfZeroes = None
+            if (inputHeight<self.height):
+                destLineOfZeroes = bytearray(self.stride)
+            if (inputWidth==self.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                for destY in range(0,self.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    NextSourceLinePixelIndex = sourceLinePixelIndex + inputStride
+                    if (destY<inputHeight):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = inputArray[sourceLinePixelIndex:NextSourceLinePixelIndex]
+                    elif IsToFillRestWithZeroes:
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += self.stride
+                    sourceLinePixelIndex += inputStride
+            elif (inputWidth>self.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                for destY in range(0,self.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    #NextSourceLinePixelIndex = sourceLinePixelIndex + inputStride
+                    NextSourceLinePixelIndexLIMITED = sourceLinePixelIndex + self.stride #intentionally self.stride, to limit how much to get
+                    if (destY<inputHeight):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = inputArray[sourceLinePixelIndex:NextSourceLinePixelIndexLIMITED]
+                    elif IsToFillRestWithZeroes:
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += self.stride
+                    sourceLinePixelIndex += inputStride
+            else: #elif (inputWidth<self.width):
+                destLinePixelIndex = 0
+                sourceLinePixelIndex = 0
+                PartialDestLineOfZeroes = bytearray(self.stride-inputStride)
+                for destY in range(0,self.height):
+                    NextDestLinePixelIndex = destLinePixelIndex + self.stride
+                    NextDestLinePixelIndexLIMITED = destLinePixelIndex + inputStride #intentially input stride to limit self stride since source is smaller
+                    NextSourceLinePixelIndex = sourceLinePixelIndex + inputStride
+                    #NextSourceLinePixelIndexLIMITED = sourceLinePixelIndex + self.stride #intentionally self.stride, to limit how much to get
+                    if (destY<inputHeight):
+                        #NOTE: width difference is already handled in outer "if" statement, for speed.
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndexLIMITED] = inputArray[sourceLinePixelIndex:NextSourceLinePixelIndex]
+                        if IsToFillRestWithZeroes:
+                            self.buffer[NextDestLinePixelIndexLIMITED:NextDestLinePixelIndex] = PartialDestLineOfZeroes[:]
+                    elif IsToFillRestWithZeroes:
+                        self.buffer[destLinePixelIndex:NextDestLinePixelIndex] = destLineOfZeroes[:]
+                    else:
+                        break
+                    destLinePixelIndex += self.stride
+                    sourceLinePixelIndex += inputStride
+        else:
+            print("Not Yet Implemented: different byte depth in DrawToSelfAtTopLeft")
